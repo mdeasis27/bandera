@@ -1,11 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Alert } from "@/design-system/components/alert";
 import { Card } from "@/design-system/components/card";
 import { MetricCard } from "@/design-system/components/metric-card";
 import { StatusBadge } from "@/design-system/components/status-badge";
 import { getConfig, getResults } from "@/lib/bandera/demo";
+import { generateScores } from "@/lib/bandera/simulation";
+import { welchTTest } from "@/lib/bandera/statistics";
+import type { TTest } from "@/lib/bandera/statistics";
+import { decide } from "@/lib/bandera/rollout";
+import type { RolloutDecision } from "@/lib/bandera/types";
 
 const CFG = getConfig();
 const RESULTS = getResults();
@@ -14,9 +20,69 @@ function pct(v: number) {
   return `${(v * 100).toFixed(0)}%`;
 }
 
+const DECISION_TONE: Record<RolloutDecision, "success" | "danger" | "warning"> = {
+  advance: "success",
+  kill: "danger",
+  hold: "warning",
+};
+
+const DECISION_LABEL: Record<RolloutDecision, string> = {
+  advance: "avanza",
+  kill: "kill-switch",
+  hold: "mantiene",
+};
+
+function Slider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <Card className="p-4">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-sm text-foreground">{label}</span>
+        <span className="font-mono text-sm tabular-nums text-foreground">{value.toFixed(2)}</span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-foreground"
+      />
+    </Card>
+  );
+}
+
 export default function AppPage() {
   const good = RESULTS.find((r) => r.id === "smart-routing")!;
   const bad = RESULTS.find((r) => r.id === "smart-routing-bad")!;
+
+  const [baselineMean, setBaselineMean] = useState(0.72);
+  const [variantMean, setVariantMean] = useState(0.8);
+  const [spread, setSpread] = useState(0.12);
+  const [margin, setMargin] = useState(0.02);
+  const [result, setResult] = useState<{ t: TTest; decision: RolloutDecision } | null>(null);
+
+  function run() {
+    const baseline = generateScores(12345, baselineMean, spread, 24);
+    const variant = generateScores(12346, variantMean, spread, 24);
+    const t = welchTTest(baseline, variant, 0.05);
+    const decision = decide(t.ciLow, t.ciHigh, margin);
+    setResult({ t, decision });
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -82,71 +148,63 @@ export default function AppPage() {
           />
         </div>
 
-        {/* ── ROLLOUTS ────────────────────────── */}
+        {/* ── PLAYGROUND ──────────────────────── */}
         <section>
-          <h2 className="text-lg font-semibold tracking-tight text-foreground mb-1">Rollout gate</h2>
+          <h2 className="text-lg font-semibold tracking-tight text-foreground mb-1">Rollout en vivo</h2>
           <p className="text-sm text-muted-foreground mb-5">
-            Cada etapa muestrea calidad de baseline y variante, corre Welch&apos;s t-test y decide:
-            avanzar (no-peor), mantener (evidencia insuficiente) o matar (regresión). La variante
-            buena avanza a 100%; la mala dispara el kill-switch en la primera etapa.
+            Configura las medias de baseline y variante, muestrea calidad con un generador
+            determinista y corre Welch&apos;s t-test. Consejo: baja variantMean por debajo de
+            baseline para disparar el kill-switch.
           </p>
-          <div className="space-y-5">
-            {RESULTS.map((r) => (
-              <Card key={r.id} className="p-5">
-                <div className="flex items-start justify-between gap-4 mb-4">
-                  <div>
-                    <h3 className="font-semibold text-foreground">{r.name}</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      tráfico final: {pct(r.finalTraffic)}
-                    </p>
-                  </div>
-                  {r.killed ? (
-                    <StatusBadge tone="danger" dot>kill-switch</StatusBadge>
-                  ) : (
-                    <StatusBadge tone="success" dot>completado</StatusBadge>
-                  )}
-                </div>
-                <div className="overflow-x-auto rounded-[var(--radius-md)] bg-muted/20">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-[var(--border)]">
-                        <th scope="col" className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Etapa</th>
-                        <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Δ</th>
-                        <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">p-value</th>
-                        <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">IC 95%</th>
-                        <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Decisión</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[var(--border)]">
-                      {r.stages.map((s, i) => (
-                        <tr key={i}>
-                          <td className="px-4 py-2.5 font-mono text-xs text-foreground">{pct(s.stage)}</td>
-                          <td className="px-4 py-2.5 text-right font-mono text-xs tabular-nums text-foreground">
-                            {s.delta >= 0 ? "+" : ""}{s.delta.toFixed(3)}
-                          </td>
-                          <td className="px-4 py-2.5 text-right font-mono text-xs tabular-nums text-muted-foreground">
-                            {s.pValue < 0.001 ? "< 0.001" : s.pValue.toFixed(3)}
-                          </td>
-                          <td className="px-4 py-2.5 text-right font-mono text-xs tabular-nums text-muted-foreground">
-                            [{s.ciLow.toFixed(3)}, {s.ciHigh.toFixed(3)}]
-                          </td>
-                          <td className="px-4 py-2.5 text-right">
-                            {s.decision === "advance" ? (
-                              <StatusBadge tone="success">avanza</StatusBadge>
-                            ) : s.decision === "kill" ? (
-                              <StatusBadge tone="danger">mata</StatusBadge>
-                            ) : (
-                              <StatusBadge tone="warning">mantiene</StatusBadge>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            ))}
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Slider label="Media del baseline" value={baselineMean} min={0.5} max={0.9} step={0.01} onChange={setBaselineMean} />
+            <Slider label="Media de la variante" value={variantMean} min={0.5} max={0.9} step={0.01} onChange={setVariantMean} />
+            <Slider label="Dispersión (spread)" value={spread} min={0.05} max={0.3} step={0.01} onChange={setSpread} />
+            <Slider label="Margen no-peor" value={margin} min={0} max={0.05} step={0.005} onChange={setMargin} />
           </div>
+
+          <Card className="mt-4 p-4">
+            <button
+              onClick={run}
+              className="w-full rounded-[var(--radius-md)] bg-accent px-4 py-2.5 text-sm font-medium text-[#ffffff] hover:bg-accent/90 transition-colors"
+            >
+              Simular rollout
+            </button>
+          </Card>
+
+          {result && (
+            <Card className="mt-4 p-5">
+              <div className="flex items-center gap-3">
+                <StatusBadge tone={DECISION_TONE[result.decision]} dot>
+                  {DECISION_LABEL[result.decision]}
+                </StatusBadge>
+                <span className="text-sm text-muted-foreground">
+                  decisión sobre el intervalo de confianza del efecto
+                </span>
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Δ (variante − base)</p>
+                  <p className="font-semibold text-foreground">
+                    {result.t.delta >= 0 ? "+" : ""}{result.t.delta.toFixed(3)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">p-value</p>
+                  <p className="font-semibold text-foreground">
+                    {result.t.pValue < 0.001 ? "< 0.001" : result.t.pValue.toFixed(3)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">IC 95%</p>
+                  <p className="font-semibold text-foreground">
+                    [{result.t.ciLow.toFixed(3)}, {result.t.ciHigh.toFixed(3)}]
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
         </section>
 
         {/* ── NOTE ────────────────────────────── */}
