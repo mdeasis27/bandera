@@ -1,0 +1,22 @@
+{
+  "alpha": 0.05,
+  "margin": 0.02,
+  "stages": [0.1, 0.25, 0.5, 1.0],
+  "sampleSize": 24,
+  "spread": 0.12,
+  "baselineMean": 0.72,
+  "experiments": [
+    {
+      "id": "smart-routing",
+      "name": "Smart routing (mejora real)",
+      "variantMean": 0.80,
+      "seed": 12345
+    },
+    {
+      "id": "smart-routing-bad",
+      "name": "Smart routing (regresión)",
+      "variantMean": 0.66,
+      "seed": 67890
+    }
+  ]
+}

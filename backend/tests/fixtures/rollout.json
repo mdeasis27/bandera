@@ -1,0 +1,31 @@
+{
+  "experiments": [
+    {
+      "id": "smart-routing",
+      "completed": true,
+      "killed": false,
+      "killedAt": null,
+      "regressions": 0,
+      "finalTraffic": 1.0,
+      "decisions": ["advance", "advance", "advance", "advance"],
+      "stages": [
+        { "stage": 0.1, "delta": 0.0812578133959323, "pValue": 3.329169606658411e-09, "ciLow": 0.05883477799106543, "ciHigh": 0.10368084880079917 },
+        { "stage": 0.25, "delta": 0.0762578133959324, "pValue": 1.1460290938458684e-08, "ciLow": 0.05412260151311514, "ciHigh": 0.09839302527874967 },
+        { "stage": 0.5, "delta": 0.0862578133959323, "pValue": 8.44684544532015e-10, "ciLow": 0.06369218967140948, "ciHigh": 0.10882343712045513 },
+        { "stage": 1.0, "delta": 0.0812578133959323, "pValue": 1.7768457816202954e-09, "ciLow": 0.05944737805509526, "ciHigh": 0.10306824873676934 }
+      ]
+    },
+    {
+      "id": "smart-routing-bad",
+      "completed": false,
+      "killed": true,
+      "killedAt": 0.1,
+      "regressions": 1,
+      "finalTraffic": 0.0,
+      "decisions": ["kill"],
+      "stages": [
+        { "stage": 0.1, "delta": -0.06374218660406772, "pValue": 1.7814811847927103e-09, "ciLow": -0.08090159668021402, "ciHigh": -0.046582776527921414 }
+      ]
+    }
+  ]
+}
