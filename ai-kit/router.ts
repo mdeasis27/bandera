@@ -5,7 +5,6 @@ import type { ChatOptions, ChatResponse } from "./types";
 import type { LLMProvider } from "./providers/base";
 import { createGeminiProvider } from "./providers/gemini";
 import { createOpenAICompatProvider } from "./providers/openai-compat";
-import { createAnthropicProvider } from "./providers/anthropic";
 import { AllProvidersFailedError, ProviderError, isRetryableError } from "./errors";
 
 function buildDefaultProviders(): LLMProvider[] {
