@@ -1,20 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Alert } from "@/design-system/components/alert";
 import { Card } from "@/design-system/components/card";
 import { MetricCard } from "@/design-system/components/metric-card";
 import { StatusBadge } from "@/design-system/components/status-badge";
 import { getConfig, getResults } from "@/lib/bandera/demo";
-import { generateScores } from "@/lib/bandera/simulation";
-import { welchTTest } from "@/lib/bandera/statistics";
 import type { TTest } from "@/lib/bandera/statistics";
-import { decide } from "@/lib/bandera/rollout";
 import type { RolloutDecision } from "@/lib/bandera/types";
 
 const CFG = getConfig();
 const RESULTS = getResults();
+
+interface RolloutRun extends TTest {
+  decision: RolloutDecision;
+}
+
+interface RolloutHistoryItem {
+  id: number;
+  baseline_mean: number;
+  variant_mean: number;
+  margin: number;
+  delta: number;
+  p_value: number;
+  decision: string;
+  created_at: string;
+}
 
 function pct(v: number) {
   return `${(v * 100).toFixed(0)}%`;
@@ -74,15 +86,50 @@ export default function AppPage() {
   const [variantMean, setVariantMean] = useState(0.8);
   const [spread, setSpread] = useState(0.12);
   const [margin, setMargin] = useState(0.02);
-  const [result, setResult] = useState<{ t: TTest; decision: RolloutDecision } | null>(null);
+  const [result, setResult] = useState<RolloutRun | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<RolloutHistoryItem[]>([]);
 
-  function run() {
-    const baseline = generateScores(12345, baselineMean, spread, 24);
-    const variant = generateScores(12346, variantMean, spread, 24);
-    const t = welchTTest(baseline, variant, 0.05);
-    const decision = decide(t.ciLow, t.ciHigh, margin);
-    setResult({ t, decision });
+  async function run() {
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    try {
+      const res = await fetch("/api/rollout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ baselineMean, variantMean, spread, margin }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Error simulando el rollout");
+      } else {
+        setResult(data);
+        loadHistory();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error de red");
+    } finally {
+      setLoading(false);
+    }
   }
+
+  async function loadHistory() {
+    try {
+      const res = await fetch("/api/history");
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data.rollouts ?? []);
+      }
+    } catch {
+      /* history is best-effort */
+    }
+  }
+
+  useEffect(() => {
+    loadHistory();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -112,9 +159,7 @@ export default function AppPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <StatusBadge tone="info" dot className="px-3 py-1">
-              Demo mode
-            </StatusBadge>
+            <StatusBadge tone="success" dot className="px-3 py-1">Postgres en vivo</StatusBadge>
           </div>
         </div>
       </header>
@@ -153,8 +198,9 @@ export default function AppPage() {
           <h2 className="text-lg font-semibold tracking-tight text-foreground mb-1">Rollout en vivo</h2>
           <p className="text-sm text-muted-foreground mb-5">
             Configura las medias de baseline y variante, muestrea calidad con un generador
-            determinista y corre Welch&apos;s t-test. Consejo: baja variantMean por debajo de
-            baseline para disparar el kill-switch.
+            determinista y corre Welch&apos;s t-test en el backend. Cada simulación queda
+            persistida en Postgres. Consejo: baja variantMean por debajo de baseline para
+            disparar el kill-switch.
           </p>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -167,11 +213,18 @@ export default function AppPage() {
           <Card className="mt-4 p-4">
             <button
               onClick={run}
-              className="w-full rounded-[var(--radius-md)] bg-accent px-4 py-2.5 text-sm font-medium text-[#ffffff] hover:bg-accent/90 transition-colors"
+              disabled={loading}
+              className="w-full rounded-[var(--radius-md)] bg-accent px-4 py-2.5 text-sm font-medium text-[#ffffff] hover:bg-accent/90 transition-colors disabled:opacity-50"
             >
-              Simular rollout
+              {loading ? "Simulando…" : "Simular rollout"}
             </button>
           </Card>
+
+          {error && (
+            <div className="mt-4 rounded-[var(--radius-md)] border border-danger/25 bg-danger/10 p-4 text-sm text-foreground">
+              {error}
+            </div>
+          )}
 
           {result && (
             <Card className="mt-4 p-5">
@@ -187,25 +240,64 @@ export default function AppPage() {
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Δ (variante − base)</p>
                   <p className="font-semibold text-foreground">
-                    {result.t.delta >= 0 ? "+" : ""}{result.t.delta.toFixed(3)}
+                    {result.delta >= 0 ? "+" : ""}{result.delta.toFixed(3)}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">p-value</p>
                   <p className="font-semibold text-foreground">
-                    {result.t.pValue < 0.001 ? "< 0.001" : result.t.pValue.toFixed(3)}
+                    {result.pValue < 0.001 ? "< 0.001" : result.pValue.toFixed(3)}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">IC 95%</p>
                   <p className="font-semibold text-foreground">
-                    [{result.t.ciLow.toFixed(3)}, {result.t.ciHigh.toFixed(3)}]
+                    [{result.ciLow.toFixed(3)}, {result.ciHigh.toFixed(3)}]
                   </p>
                 </div>
               </div>
             </Card>
           )}
         </section>
+
+        {/* ── HISTORY ─────────────────────────── */}
+        {history.length > 0 && (
+          <section>
+            <h3 className="text-sm font-semibold text-foreground mb-3">Historial de rollouts (persistido en Postgres)</h3>
+            <div className="overflow-x-auto rounded-[var(--radius-md)] shadow-[var(--shadow-card)] bg-card">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--border)] bg-[var(--gray-50)]">
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Base</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Variante</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Δ</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">p-value</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Decisión</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)]">
+                  {history.map((h) => (
+                    <tr key={h.id}>
+                      <td className="px-4 py-2.5 tabular-nums text-foreground">{Number(h.baseline_mean).toFixed(2)}</td>
+                      <td className="px-4 py-2.5 tabular-nums text-foreground">{Number(h.variant_mean).toFixed(2)}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-foreground">
+                        {Number(h.delta) >= 0 ? "+" : ""}{Number(h.delta).toFixed(3)}
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-foreground">
+                        {Number(h.p_value) < 0.001 ? "< 0.001" : Number(h.p_value).toFixed(3)}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <StatusBadge tone={DECISION_TONE[h.decision as RolloutDecision]}>
+                          {DECISION_LABEL[h.decision as RolloutDecision]}
+                        </StatusBadge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {/* ── NOTE ────────────────────────────── */}
         <section>
@@ -218,7 +310,7 @@ export default function AppPage() {
         </section>
 
         <footer className="pt-8 border-t border-[var(--border)] flex items-center justify-between text-xs text-muted-foreground">
-          <span>Bandera · AI feature flags · Demo mode</span>
+          <span>Bandera · AI feature flags · Backend + Postgres</span>
           <a href="https://github.com/mdeasis27/bandera" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors font-mono">GitHub</a>
         </footer>
       </div>
