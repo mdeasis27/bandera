@@ -32,6 +32,8 @@ export interface StageResult {
   ciLow: number;
   ciHigh: number;
   decision: RolloutDecision;
+  /** One per variant sample: "good" when the score is at least baseline mean minus the margin. */
+  outcomes: ("good" | "degraded")[];
 }
 
 export interface RolloutResult {

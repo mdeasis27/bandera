@@ -54,3 +54,16 @@ def test_good_completes_bad_kills():
 
     assert good["completed"] and good["regressions"] == 0 and good["finalTraffic"] == 1.0
     assert bad["killed"] and bad["regressions"] == 1 and bad["finalTraffic"] == 0.0
+
+
+def test_per_user_outcomes_match_fixture():
+    from bandera.rollout import simulate_rollout
+    cfg = _load("flag.json")
+    fixture = _load("rollout.json")
+    results = benchmark(cfg)
+    for expected in fixture["experiments"]:
+        got = next(r for r in results if r["id"] == expected["id"])
+        assert [s["outcomes"] for s in got["stages"]] == [s["outcomes"] for s in expected["stages"]]
+    story = fixture["story"]
+    r = simulate_rollout({**cfg, "margin": story["margin"]}, {"id": "story", "name": "story", "variantMean": story["variantMean"], "seed": story["seed"]})
+    assert [s["outcomes"] for s in r["stages"]] == story["outcomes"]
