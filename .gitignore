@@ -47,3 +47,8 @@ __pycache__/
 *.pyc
 .pytest_cache/
 *.egg-info/
+
+# Generated component diagnostics; accepted captures use canonical filenames.
+/docs/images/lab.*.png
+
+/docs/quality/*.log

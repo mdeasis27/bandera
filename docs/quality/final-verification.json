@@ -1,0 +1,22 @@
+[
+  {
+    "command": "npm test",
+    "exitCode": 0,
+    "log": "final-test.log"
+  },
+  {
+    "command": "npm run lint",
+    "exitCode": 0,
+    "log": "final-lint.log"
+  },
+  {
+    "command": "npx tsc --noEmit --incremental false",
+    "exitCode": 0,
+    "log": "final-types.log"
+  },
+  {
+    "command": "npm run build",
+    "exitCode": 0,
+    "log": "final-build.log"
+  }
+]

@@ -1,82 +1,79 @@
-# Bandera
+# Controlled rollout
 
-**AI feature flags with gradual rollout** — a rollout that only advances when the variant is
-statistically *no worse* than the baseline, with a kill-switch that rolls back on a regression.
+[Español](README.es.md) · [Try the demo](https://bandera-manueldeasis27-2515s-projects.vercel.app/en/app) · [Case study](https://manueldeasis.com/en/projects/bandera) · [Source](https://github.com/mdeasis27/bandera)
 
-> **Result:** the good variant rolls out **10% → 25% → 50% → 100% with 0 regressions** (each
-> stage confirms p < 0.001 with a CI fully above the margin). The bad variant **kills at the
-> first stage** — its CI is entirely below the no-worse margin, so the kill-switch rolls it back
-> to **0% traffic** with **1 regression** caught, not shipped.
+![Actual interactive local interface](docs/images/cover.png)
 
----
+Change simulated variant quality and no-worse margins to inspect rollout decisions.
 
-## Result
+## Two situations to compare
 
-| Experiment | Δ (mean) | p-value | Decision per stage | Final traffic |
-|---|---|---|---|---|
-| Smart routing (real improvement) | +0.08 | < 0.001 | advance × 4 | **100%** |
-| Smart routing (regression) | -0.064 | < 0.001 | kill | **0%** |
+**Healthy variant:** Quality 0.80 Stages advance.
 
-The good variant advances through every stage because its 95% CI never drops below `-margin`.
-The bad variant trips the kill-switch immediately because its CI is entirely below `-margin`.
-The rollout is a control loop, not a timeline: the traffic fraction moves only on statistical
-evidence.
+![Healthy variant](docs/images/scenario-a.png)
 
----
+**Weak variant:** Low quality Kill switch activates.
+
+![Weak variant](docs/images/scenario-b.png)
+
+## Business use case
+
+A rollout needs an observable stop condition.
+
+**Who uses it:** Release owner.
+
+**The decision:** Advance, hold, or activate the kill switch.
+
+Choose a quality preset, simulate staged traffic, and read each decision.
+
+### Try the decision
+
+**Healthy variant:** Quality 0.80 Stages advance.
+
+**Weak variant:** Low quality Kill switch activates.
+
+Choose a scenario, edit its controls and run the local computation. Step through the visual process or reveal all steps. Reset before comparing the second scenario.
+
+## How to try it
+
+Open `/en/app` (English, default) or `/es/app` (Spanish). Change the scenario inputs and run the computation. Inspect the resulting decision, evidence and computed trace. Playback reveals completed local steps; it does not measure a live model. Reset starts a new local scenario. Changing language resets the scenario; the interface displays a reset notice.
+
+The primary demo needs no account, API key or database. Public links refer to the existing deployment; local redesign changes are pending publication.
+
+## Local setup and verification
+
+Requires Node.js 22 and pnpm 10.
+
+```sh
+pnpm install --frozen-lockfile
+pnpm dev
+pnpm test
+node node_modules/typescript/bin/tsc --noEmit --incremental false
+pnpm lint
+pnpm build
+```
+
+Open `http://localhost:3000/en/app`. Recorded validation covers tests, lint, TypeScript and production builds. See [command results](docs/quality/decision-lab-verification.json) and [browser component checks](docs/quality/decision-lab-browser.json). The new browser checks exercise real React components and production CSS with controlled locale navigation; they do not certify Next routes or public deployment.
 
 ## Architecture
 
-```
-lib/bandera/                # canonical core (TypeScript, tested)
-  statistics.ts             #   Welch t-test (shared with ensayo)
-  simulation.ts             #   seeded LCG — deterministic quality samples
-  rollout.ts                #   decide() + simulateRollout() (the gate + kill-switch)
-  benchmark.ts              #   runs every experiment through the rollout
-  demo.ts                   #   wires config + simulation into every number
-  data/                     #   flag.json (stages, means, seeds)
-  fixtures/                 #   rollout.json (pinned decisions + statistics)
-backend/                    # same math in Python + pytest (authoritative)
-  src/bandera/              #   statistics.py · simulation.py · rollout.py · benchmark.py
-  tests/                    #   pinned to tests/fixtures/{flag,rollout}.json
-app/                        # Next.js landing + demo dashboard (Vercel, demo mode)
-```
+- `app/[lang]/`: localized browser experience.
+- `lib/experience/`: typed local adapter, validation and run traces.
+- `design-system/`: shared visual tokens, locale controls and execution/replay presentation.
+- `app/api/`: optional server integrations; the primary demo does not require them.
 
-The quality samples come from a seeded linear-congruential generator — the same `mod 2^32`
-arithmetic in TypeScript and Python produces bit-identical samples, so the rollout decisions
-are exactly reproducible. The statistical test is the same Welch t-test as `ensayo`.
+Technology: Next.js 16, TypeScript, Python, Vitest, pytest, Tailwind CSS v4.
 
-## Design decisions & tradeoffs
+## Evidence and limitations
 
-1. **The gate reuses the statistical test, not a hand-rolled threshold.** "No worse" is a
-   one-sided claim backed by the same t-test that gates `ensayo`'s A/B. The margin (0.02) is a
-   tolerance band: a variant may be slightly worse and still advance, as long as it isn't
-   *confidently* worse.
-2. **A seeded LCG instead of committed score arrays.** Bandera needs fresh samples at every
-   stage, so the simulation generates them deterministically — the same generator, the same
-   seed, the same decisions in both languages.
-3. **Kill-switch is a CI rule, not a dashboard alert.** `ciHigh < -margin` kills automatically;
-   no human has to watch. The cost is that a noisy stage can hold or kill earlier than a human
-   would, which the margin tunes.
+Traffic fills stages until a gate or kill switch intervenes.
 
-## What did not work
+Traffic stages, hold/advance/kill paths and explicit simulation assumptions.
 
-- **The "hold" state is degenerate in this demo.** With clean means and a fixed margin, the CI
-  never straddles the boundary, so "hold" never fires — it exists for correctness but isn't
-  exercised by the two synthetic experiments. Real traffic with smaller effect sizes would hit it.
-- **Uniform noise understates real tails.** A uniform `mean ± spread/2` has no outliers; real
-  quality metrics are heavy-tailed. The demo isolates the *gate* rather than the noise model.
+Turns rollout evidence into a reversible action.
 
-## Run it
+**Limits:** Traffic is simulated locally. These portfolio prototypes do not claim measured production impact.
 
-```bash
-# frontend demo + TS tests
-pnpm install && pnpm dev      # http://localhost:3000
-pnpm test                     # 8 vitest tests
+Inputs use fictional or anonymized examples. Optional live integrations require their own credentials and operational setup. Secrets belong in the configured secret manager, never in local secret files or Git. Use the existing `infisical run -- <command>` workflow when live integration is needed. This repository does not publish or deploy automatically as part of the local demo.
 
-# backend (authoritative math) — Python 3.12+
-cd backend && uv sync --extra dev && uv run pytest   # 4 tests, pinned fixtures
-```
-
-## Stack
-
-Next.js 16 · TypeScript · Vitest · Tailwind v4 · Python 3.13 · pytest
+![Actual English demo capture](docs/images/demo.png)

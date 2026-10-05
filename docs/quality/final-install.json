@@ -1,0 +1,5 @@
+{
+  "command": "pnpm install --lockfile-only --frozen-lockfile --ignore-scripts --offline",
+  "exitCode": 0,
+  "log": "final-install.log"
+}

@@ -1,0 +1,1 @@
+import {Experience} from "@/components/experience/experience";import {isLocale} from "@/design-system/i18n/locale";import {notFound} from "next/navigation";export default async function Page({params}:{params:Promise<{lang:string}>}){const {lang}=await params;if(!isLocale(lang))notFound();return <Experience locale={lang}/>;}
