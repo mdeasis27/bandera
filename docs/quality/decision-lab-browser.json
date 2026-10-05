@@ -1,0 +1,51 @@
+{
+  "repository": "bandera",
+  "scope": "Real React component with controlled locale; Next routes not tested.",
+  "checks": [
+    {
+      "locale": "en",
+      "scenarios": [
+        {
+          "preset": "Healthy variant\nTraffic stages advance",
+          "outcome": "Advance the rollout\n\nThe completed simulated stages meet the configured no-worse margin."
+        },
+        {
+          "preset": "Weak variant\nThe kill switch activates",
+          "outcome": "Kill switch activated\n\nA simulated stage breached the local no-worse rule, so later traffic is stopped."
+        }
+      ],
+      "mobileNoOverflow": true,
+      "reducedMotion": true,
+      "keyboard": true,
+      "noRequests": true,
+      "sceneChangesWithScenario": true,
+      "editingClearsPresetAndTrace": true,
+      "resetRestoresFirstPreset": true,
+      "cancelControlPresent": true,
+      "presetRestoresAllInputs": true
+    },
+    {
+      "locale": "es",
+      "scenarios": [
+        {
+          "preset": "Variante sana\nLas etapas avanzan",
+          "outcome": "Avanza el despliegue\n\nLas etapas simuladas completadas cumplen el margen configurado de no empeorar."
+        },
+        {
+          "preset": "Variante débil\nSe activa el apagado",
+          "outcome": "Interruptor de apagado activado\n\nUna etapa simulada incumplió la regla local de no empeorar, por lo que se detiene el tráfico posterior."
+        }
+      ],
+      "mobileNoOverflow": true,
+      "reducedMotion": true,
+      "keyboard": true,
+      "noRequests": true,
+      "sceneChangesWithScenario": true,
+      "editingClearsPresetAndTrace": true,
+      "resetRestoresFirstPreset": true,
+      "cancelControlPresent": true,
+      "presetRestoresAllInputs": true
+    }
+  ],
+  "errors": []
+}

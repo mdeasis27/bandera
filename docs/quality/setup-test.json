@@ -1,0 +1,5 @@
+{
+  "command": "pnpm test",
+  "exitCode": 0,
+  "log": "setup-test.log"
+}
