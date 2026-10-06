@@ -39,3 +39,9 @@ describe("Bandera story copy", () => {
     for (const q of [.6, .72, .84]) expect(STORY.en.tryIt.question(q)).not.toMatch(/0\.\d/);
   });
 });
+
+it("names where the rollout stopped, in both languages", () => {
+  const cases = [{ approved: 10, stoppedAt: 25, killed: false }, { approved: 0, stoppedAt: 10, killed: false }, { approved: 0, stoppedAt: 10, killed: true }, { approved: 100, stoppedAt: null, killed: false }];
+  expect(cases.map(STORY.en.scene.reached)).toEqual(["Approved up to 10%, paused at 25%", "Paused at 10% of users", "Switched off at 10% of users", "Reached 100% of users"]);
+  for (const c of cases) expect(lintStory({ s: STORY.es.scene.reached(c) })).toEqual([]);
+});

@@ -1,3 +1,4 @@
+import type { RolloutStatus } from "./scene-state";
 import type { Heading } from "@/design-system/demo/project-story";
 
 type NodeCopy = { name: string; sub: string; analogy: string };
@@ -13,7 +14,7 @@ export interface BanderaStory {
   fit: { heading: Heading; worthLabel: string; worth: string; notLabel: string; not: string };
   proves: { heading: Heading; text: string };
   engineers: { summary: string; points: string[]; repoLabel: string };
-  scene: { title: string; caption: string; statusLabels: { active: string; danger: string; success: string; off: string }; tapeLabel: string; nodes: { users: NodeCopy; flag: NodeCopy; current: NodeCopy; next: NodeCopy }; tape: { served: string; rerouted: string; lost: string }; reached: (percent: number) => string };
+  scene: { title: string; caption: string; statusLabels: { active: string; danger: string; success: string; off: string }; tapeLabel: string; nodes: { users: NodeCopy; flag: NodeCopy; current: NodeCopy; next: NodeCopy }; tape: { served: string; rerouted: string; lost: string }; reached: (s: RolloutStatus) => string };
 }
 
 /** The current version scores 0.72. Recruiters see a word, never the raw score. */
@@ -110,7 +111,10 @@ export const STORY: Record<"en" | "es", BanderaStory> = {
         next: { name: "New version", sub: "being tested", analogy: "the new menu" },
       },
       tape: { served: "good experience", rerouted: "stayed on the current version", lost: "worse experience" },
-      reached: (p) => `Reached ${p}% of users`,
+      reached: ({ approved, stoppedAt, killed }) =>
+        killed ? `Switched off at ${stoppedAt}% of users`
+        : stoppedAt !== null ? (approved > 0 ? `Approved up to ${approved}%, paused at ${stoppedAt}%` : `Paused at ${stoppedAt}% of users`)
+        : approved > 0 ? (approved === 100 ? "Reached 100% of users" : `Approved up to ${approved}% so far`) : "Waiting for the first group",
     },
   },
   es: {
@@ -193,7 +197,10 @@ export const STORY: Record<"en" | "es", BanderaStory> = {
         next: { name: "Versión nueva", sub: "en prueba", analogy: "el menú nuevo" },
       },
       tape: { served: "buena experiencia", rerouted: "se quedó en la versión actual", lost: "peor experiencia" },
-      reached: (p) => `Llegó al ${p}% de los usuarios`,
+      reached: ({ approved, stoppedAt, killed }) =>
+        killed ? `Apagada en el ${stoppedAt}% de los usuarios`
+        : stoppedAt !== null ? (approved > 0 ? `Aprobada hasta el ${approved}%, en pausa en el ${stoppedAt}%` : `En pausa en el ${stoppedAt}% de los usuarios`)
+        : approved > 0 ? (approved === 100 ? "Llegó al 100% de los usuarios" : `Aprobada hasta el ${approved}% por ahora`) : "Esperando al primer grupo",
     },
   },
 };

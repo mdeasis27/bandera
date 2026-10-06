@@ -8,7 +8,7 @@ import { StoryHero, StorySection, AnalogyBlock, WhyIBuiltIt, FitGuide, ProvesBlo
 import { traceCopy } from "@/lib/experience/trace-copy";
 import { runMission } from "@/lib/experience/mission";
 import { BanderaStoryScene } from "@/lib/experience/story-scene";
-import { COMPLETE_FRAME } from "@/lib/experience/scene-state";
+import { COMPLETE_FRAME, rolloutStatus } from "@/lib/experience/scene-state";
 import { STORY } from "@/lib/experience/story";
 
 const REPO = "https://github.com/mdeasis27/bandera";
@@ -64,7 +64,7 @@ export function Experience({ locale }: { locale: Locale }) {
     </StorySection>
 
     <StorySection index={3} heading={t.compare.heading} lead={t.compare.lead}>
-      {result && played ? <MissionComparison locale={locale} prediction={prediction} actual={reachedAll ? "yes" : "no"} actualLabel={t.scene.reached(Math.round(result.finalTraffic * 100))} explanation={t.compare.sentence(result.comparison.withGuard, result.comparison.withoutGuard)} sides={[
+      {result && played ? <MissionComparison locale={locale} prediction={prediction} actual={reachedAll ? "yes" : "no"} actualLabel={t.scene.reached(rolloutStatus(result.stages, result.stages.length))} explanation={t.compare.sentence(result.comparison.withGuard, result.comparison.withoutGuard)} sides={[
         { label: t.compare.on, value: `${result.comparison.withGuard}`, detail: t.compare.worse, positive: result.comparison.withGuard < result.comparison.withoutGuard },
         { label: t.compare.off, value: `${result.comparison.withoutGuard}`, detail: t.compare.worse },
       ]} /> : null}

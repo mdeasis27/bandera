@@ -22,3 +22,14 @@ export function revealedStages(frame: { visible: number; total: number; complete
 }
 
 export const COMPLETE_FRAME: PlaybackFrame<TraceEvent> = { visible: 0, total: 0, event: undefined, complete: true };
+
+export type RolloutStatus = { approved: number; stoppedAt: number | null; killed: boolean };
+
+/** Percent of users the rollout was approved up to, and the stage where it held or was switched off (null while it is still advancing). */
+export function rolloutStatus(stages: RolloutResult["stages"], revealed: number): RolloutStatus {
+  const shown = stages.slice(0, revealed);
+  const approved = Math.round((shown.filter(s => s.decision === "advance").at(-1)?.stage ?? 0) * 100);
+  const last = shown.at(-1);
+  if (!last || last.decision === "advance") return { approved, stoppedAt: null, killed: false };
+  return { approved, stoppedAt: Math.round(last.stage * 100), killed: last.decision === "kill" };
+}

@@ -5,7 +5,7 @@ import { StoryStage } from "@/design-system/demo/decision-lab";
 import { OutcomeTape, useReducedMotion } from "@/design-system/demo/project-story";
 import { FlowDiagram, type FlowTone } from "@/design-system/demo/flow-diagram";
 import type { RolloutResult } from "@/lib/bandera/types";
-import { banderaCells, revealedStages } from "./scene-state";
+import { banderaCells, revealedStages, rolloutStatus } from "./scene-state";
 import { STORY } from "./story";
 
 const POS = { users: { x: 10, y: 95 }, flag: { x: 230, y: 95 }, current: { x: 470, y: 20 }, next: { x: 470, y: 170 } } as const;
@@ -16,12 +16,11 @@ export function BanderaStoryScene({ frame, result, locale }: { frame: PlaybackFr
   const revealed = revealedStages(frame, result.stages.length, reduced);
   const cells = banderaCells(result, revealed);
   const last = revealed > 0 ? result.stages[revealed - 1] : undefined;
-  const reachedStage = result.stages.slice(0, revealed).filter(s => s.decision === "advance").at(-1)?.stage ?? 0;
   const nextTone: FlowTone = !last ? "idle" : last.decision === "kill" ? "danger" : last.decision === "hold" ? "off" : "success";
   const stopped = revealed >= result.stages.length && !result.completed;
   const tone: Record<keyof typeof POS, FlowTone> = { users: "idle", flag: "active", current: stopped ? "success" : "idle", next: nextTone };
   const nodes = (Object.keys(POS) as (keyof typeof POS)[]).map(id => ({ id, ...POS[id], ...copy.nodes[id], tone: tone[id] }));
-  const reached = copy.reached(Math.round((last?.decision === "kill" ? 0 : reachedStage) * 100));
+  const reached = copy.reached(rolloutStatus(result.stages, revealed));
   return <StoryStage locale={locale} title={copy.title} caption={copy.caption} step={frame.visible} total={frame.total}>
     <FlowDiagram nodes={nodes} width={640} height={260} ariaLabel={reached} statusLabels={copy.statusLabels} edges={[
       { from: "users", to: "flag" },
