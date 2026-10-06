@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { tapeCounts } from "@/design-system/demo/outcome-tape";
-import { banderaCells, revealedStages, rolloutStatus } from "./scene-state";
+import { banderaCells, revealedStages, rolloutStatus, zoneStates } from "./scene-state";
 import { runMission } from "./mission";
 
 const result = async (q: number) => (await runMission({ variantQuality: q, noWorseMargin: .02 }, new AbortController().signal, () => {})).result;
@@ -35,4 +35,13 @@ it("rolloutStatus names the last approved stage and where the rollout stopped", 
   const r = await result(.72);
   expect(rolloutStatus(r.stages, 1)).toEqual({ approved: 10, stoppedAt: null, killed: false });
   expect(rolloutStatus(r.stages, 0)).toEqual({ approved: 0, stoppedAt: null, killed: false });
+});
+
+it("zoneStates opens one zone per revealed stage; zones that never ran keep the usual menu once every stage is shown", async () => {
+  const r = await result(.72);
+  expect(zoneStates(r, 0)).toEqual(["closed", "closed", "closed", "closed"]);
+  expect(zoneStates(r, 1)).toEqual(["open", "closed", "closed", "closed"]);
+  expect(zoneStates(r, 2)).toEqual(["open", "open", "usual", "usual"]);
+  const all = await result(.80);
+  expect(zoneStates(all, all.stages.length)).toEqual(["open", "open", "open", "open"]);
 });
