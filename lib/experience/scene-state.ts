@@ -33,3 +33,11 @@ export function rolloutStatus(stages: RolloutResult["stages"], revealed: number)
   if (!last || last.decision === "advance") return { approved, stoppedAt: null, killed: false };
   return { approved, stoppedAt: Math.round(last.stage * 100), killed: last.decision === "kill" };
 }
+
+export type ZoneState = "closed" | "open" | "usual";
+
+/** One zone per stage of the rollout (10%, 25%, 50%, everyone). Unrun zones keep the usual menu once every run stage is revealed. */
+export function zoneStates(result: RolloutResult, revealed: number): ZoneState[] {
+  const ran = result.stages.length;
+  return Array.from({ length: STAGES }, (_, z) => z < ran ? (z < revealed ? "open" : "closed") : revealed >= ran ? "usual" : "closed");
+}

@@ -1,7 +1,7 @@
 import type { RolloutStatus } from "./scene-state";
 import type { Heading } from "@/design-system/demo/project-story";
 
-type NodeCopy = { name: string; sub: string; analogy: string };
+type FlagCopy = { name: string; sub: string };
 
 export interface BanderaStory {
   name: string;
@@ -14,7 +14,7 @@ export interface BanderaStory {
   fit: { heading: Heading; worthLabel: string; worth: string; notLabel: string; not: string };
   proves: { heading: Heading; text: string };
   engineers: { summary: string; points: string[]; repoLabel: string };
-  scene: { title: string; caption: string; statusLabels: { active: string; danger: string; success: string; off: string }; tapeLabel: string; nodes: { users: NodeCopy; flag: NodeCopy; current: NodeCopy; next: NodeCopy }; tape: { served: string; rerouted: string; lost: string }; reached: (s: RolloutStatus) => string };
+  scene: { title: string; caption: string; zone: (pct: number) => string; flag: { idle: FlagCopy; advance: FlagCopy; hold: FlagCopy; kill: FlagCopy }; summary: (served: number, lost: number, usual: number) => string; tape: { served: string; rerouted: string; lost: string }; reached: (s: RolloutStatus) => string };
 }
 
 /** The current version scores 0.72. Recruiters see a word, never the raw score. */
@@ -58,7 +58,7 @@ export const STORY: Record<"en" | "es", BanderaStory> = {
       no: "No, it stops before",
       qualityLabel: "How good the new version is",
       quality: (q) => WORDS_EN[band(q)],
-      note: "Each block of 24 squares is one stage (10%, 25%, 50%, 100%) and each square is a user measured at that stage. Blue squares stayed on the current version because the rollout stopped.",
+      note: "Each zone of 24 tables is one stage (10%, 25%, 50%, 100%) and each table is a user measured at that stage. Blue tables stayed on the usual menu because the rollout stopped.",
       simulate: "Run it",
       cancel: "Cancel",
       reset: "Start over",
@@ -101,16 +101,16 @@ export const STORY: Record<"en" | "es", BanderaStory> = {
     },
     scene: {
       title: "How far the new version got",
-      caption: "Watch each stage open to more users, and see where the rollout keeps going, waits or switches off.",
-      statusLabels: { active: "deciding", success: "serving users", danger: "switched off", off: "on hold" },
-      tapeLabel: "Users measured at each stage, 24 per stage",
-      nodes: {
-        users: { name: "Users", sub: "4 stages", analogy: "the tables" },
-        flag: { name: "Bandera", sub: "advance or stop", analogy: "the maître d'" },
-        current: { name: "Current version", sub: "stays as is", analogy: "the usual menu" },
-        next: { name: "New version", sub: "being tested", analogy: "the new menu" },
+      caption: "The waiter brings the new menu table by table. After each zone the maître d' raises the flag: green keeps going, amber waits, red switches off.",
+      zone: (pct) => pct >= 100 ? "Whole room" : `Zone ${pct}%`,
+      flag: {
+        idle: { name: "Maître d'", sub: "Tries the new menu table by table" },
+        advance: { name: "Keeps going", sub: "They liked it, so the next zone opens" },
+        hold: { name: "Waits", sub: "Not enough evidence yet, so the next zones keep the usual menu" },
+        kill: { name: "Switches off", sub: "Worse than the usual menu, so the usual menu comes back" },
       },
-      tape: { served: "good experience", rerouted: "stayed on the current version", lost: "worse experience" },
+      summary: (served, lost, usual) => `${served} tables liked the new menu, ${lost} had a worse experience and ${usual} stayed on the usual menu.`,
+      tape: { served: "liked the new menu", rerouted: "stayed on the usual menu", lost: "worse experience" },
       reached: ({ approved, stoppedAt, killed }) =>
         killed ? `Switched off at ${stoppedAt}% of users`
         : stoppedAt !== null ? (approved > 0 ? `Approved up to ${approved}%, paused at ${stoppedAt}%` : `Paused at ${stoppedAt}% of users`)
@@ -144,7 +144,7 @@ export const STORY: Record<"en" | "es", BanderaStory> = {
       no: "No, se detiene antes",
       qualityLabel: "Qué tan buena es la versión nueva",
       quality: (q) => WORDS_ES[band(q)],
-      note: "Cada bloque de 24 cuadritos es una etapa (10%, 25%, 50%, 100%) y cada cuadrito es un usuario medido en esa etapa. Los azules se quedaron en la versión actual porque el lanzamiento se detuvo.",
+      note: "Cada zona de 24 mesas es una etapa (10%, 25%, 50%, 100%) y cada mesa es un usuario medido en esa etapa. Las azules se quedaron con el menú de siempre porque el lanzamiento se detuvo.",
       simulate: "Correr",
       cancel: "Cancelar",
       reset: "Empezar de nuevo",
@@ -187,16 +187,16 @@ export const STORY: Record<"en" | "es", BanderaStory> = {
     },
     scene: {
       title: "Hasta dónde llegó la versión nueva",
-      caption: "Mira cómo cada etapa se abre a más usuarios, y dónde el lanzamiento sigue, espera o se apaga.",
-      statusLabels: { active: "decidiendo", success: "atendiendo usuarios", danger: "apagada", off: "en pausa" },
-      tapeLabel: "Usuarios medidos en cada etapa, 24 por etapa",
-      nodes: {
-        users: { name: "Usuarios", sub: "4 etapas", analogy: "las mesas" },
-        flag: { name: "Bandera", sub: "avanza o se detiene", analogy: "el capitán de meseros" },
-        current: { name: "Versión actual", sub: "se queda igual", analogy: "el menú de siempre" },
-        next: { name: "Versión nueva", sub: "en prueba", analogy: "el menú nuevo" },
+      caption: "El mesero lleva la carta nueva mesa por mesa. Después de cada zona el capitán levanta la bandera: verde sigue, amarilla espera, roja se apaga.",
+      zone: (pct) => pct >= 100 ? "Todo el salón" : `Zona ${pct}%`,
+      flag: {
+        idle: { name: "Capitán de meseros", sub: "Prueba el menú nuevo mesa por mesa" },
+        advance: { name: "Sigue", sub: "Les gustó, así que se abre la siguiente zona" },
+        hold: { name: "Espera", sub: "Todavía no hay pruebas suficientes, así que las zonas que faltan siguen con el menú de siempre" },
+        kill: { name: "Se apaga", sub: "Peor que el de siempre, así que regresa el menú de siempre" },
       },
-      tape: { served: "buena experiencia", rerouted: "se quedó en la versión actual", lost: "peor experiencia" },
+      summary: (served, lost, usual) => `A ${served} mesas les gustó el menú nuevo, ${lost} tuvieron una peor experiencia y ${usual} se quedaron con el menú de siempre.`,
+      tape: { served: "le gustó el menú nuevo", rerouted: "se quedó con el menú de siempre", lost: "peor experiencia" },
       reached: ({ approved, stoppedAt, killed }) =>
         killed ? `Apagada en el ${stoppedAt}% de los usuarios`
         : stoppedAt !== null ? (approved > 0 ? `Aprobada hasta el ${approved}%, en pausa en el ${stoppedAt}%` : `En pausa en el ${stoppedAt}% de los usuarios`)
