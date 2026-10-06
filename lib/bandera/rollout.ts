@@ -29,7 +29,8 @@ export function simulateRollout(cfg: FlagConfig, experiment: ExperimentConfig): 
     const variant = generateScores(experiment.seed + i * 2 + 1, experiment.variantMean, cfg.spread, cfg.sampleSize);
     const t = welchTTest(baseline, variant, cfg.alpha);
     const decision = decide(t.ciLow, t.ciHigh, cfg.margin);
-    results.push({ stage, ...t, decision });
+    const outcomes = variant.map((x): "good" | "degraded" => (x >= cfg.baselineMean - cfg.margin ? "good" : "degraded"));
+    results.push({ stage, ...t, decision, outcomes });
 
     if (decision === "kill") {
       killed = true;

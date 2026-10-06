@@ -1,5 +1,86 @@
 "use client";
-import {useState} from "react";
-import {DemoShell} from "@/design-system/demo/demo-shell";import {StoryBrief,ScenarioPicker,StoryStage,OutcomeBlock} from "@/design-system/demo/decision-lab";import {TracePlayer} from "@/design-system/demo/trace-player";import {useDemoRun} from "@/design-system/demo/use-demo-run";import {runExperience} from "@/lib/experience/adapter";import type {Locale} from "@/design-system/i18n/locale";import {traceCopy} from "@/lib/experience/trace-copy";
-const presets:Record<"healthy"|"weak",{quality:number;margin:number}>={healthy:{quality:.9,margin:.02},weak:{quality:.1,margin:.02}};
-export function Experience({locale}:{locale:Locale}){const en=locale==="en";const [preset,setPreset]=useState<keyof typeof presets|null>("healthy"),[quality,setQuality]=useState(presets.healthy.quality),[margin,setMargin]=useState(presets.healthy.margin);const demo=useDemoRun(runExperience),result=demo.run?.result;const choose=(id:keyof typeof presets)=>{setPreset(id);setQuality(presets[id].quality);setMargin(presets[id].margin);demo.reset();};const reset=()=>choose("healthy");return <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6"><StoryBrief locale={locale} story={{eyebrow:en?"Release guardrail":"Guardarraíl de lanzamiento",mission:en?"Stage traffic with a visible stop condition.":"Escalona tráfico con una condición de detención visible.",context:en?"Each local stage compares the simulated variant against the no-worse margin.":"Cada etapa local compara la variante simulada contra el margen de no empeorar.",role:en?"Release owner":"Responsable de lanzamiento",decision:en?"Advance, hold, or activate the kill switch":"Avanzar, mantener o activar el apagado",stakes:en?"Limit exposure when the variant regresses":"Limitar exposición cuando la variante empeora"}}/><ScenarioPicker locale={locale} selected={preset??undefined} onSelect={id=>choose(id as keyof typeof presets)} options={[{id:"healthy",label:en?"Healthy variant":"Variante sana",description:en?"Traffic stages advance":"Las etapas avanzan"},{id:"weak",label:en?"Weak variant":"Variante débil",description:en?"The kill switch activates":"Se activa el apagado"}]}/><DemoShell locale={locale} mode="simulation" title={en?"Staged traffic":"Tráfico por etapas"} description={en?"The local simulation reveals one rollout decision at a time.":"La simulación local revela una decisión de despliegue a la vez."} controls={<div><label>{en?"Variant quality":"Calidad de variante"}: {quality.toFixed(2)}<input aria-label={en?"Variant quality":"Calidad de variante"} type="range" min="0" max="1" step=".01" value={quality} onChange={e=>{setPreset(null);setQuality(Number(e.target.value));demo.reset();}} className="mt-2 w-full"/></label><label className="mt-3 block">{en?"No-worse margin":"Margen de no empeoramiento"}: {margin.toFixed(2)}<input aria-label={en?"No-worse margin":"Margen de no empeoramiento"} type="range" min="0" max=".1" step=".01" value={margin} onChange={e=>{setPreset(null);setMargin(Number(e.target.value));demo.reset();}} className="mt-2 w-full"/></label><button onClick={()=>demo.execute({variantQuality:quality,noWorseMargin:margin})} className="mt-4 w-full rounded bg-foreground p-2 text-background">{en?"Simulate":"Simular"}</button><div className="mt-2 grid grid-cols-2 gap-2"><button onClick={demo.cancel} className="rounded border p-2">{en?"Cancel":"Cancelar"}</button><button onClick={reset} className="rounded border p-2">{en?"Reset":"Reiniciar"}</button></div></div>} visualization={result?<TracePlayer trace={demo.trace} locale={locale} executionMs={demo.run?.executionMs} translate={key=>traceCopy(locale,key)} renderStage={frame=><StoryStage locale={locale} title={en?"Traffic split and stop gate":"División de tráfico y compuerta"} caption={en?"Each visible stage is a simulated traffic decision; red activates the kill switch.":"Cada etapa visible es una decisión de tráfico simulada; rojo activa el apagado."} step={frame.visible} total={frame.total}><svg role="img" aria-label={en?"Staged traffic rollout":"Despliegue de tráfico por etapas"} viewBox="0 0 520 210" className="w-full"><text x="25" y="24" fill="currentColor" fontSize="12">CONTROL</text><text x="405" y="24" fill="currentColor" fontSize="12">{en?"VARIANT":"VARIANTE"}</text>{result.stages.map((stage,index)=>{const visible=index<frame.visible;const color=stage.decision==="kill"?"var(--danger)":stage.decision==="advance"?"var(--success)":"var(--warning)";return <g key={stage.stage} opacity={visible?1:.2}><text x="25" y={62+index*42} fill="currentColor" fontSize="12">{Math.round(stage.stage*100)}%</text><rect x="85" y={47+index*42} width="330" height="22" rx="11" fill="var(--muted)"/><rect x="250" y={47+index*42} width={165*stage.stage} height="22" rx="11" fill={color}/><text x="425" y={62+index*42} fill="currentColor" fontSize="12">{visible?(en?stage.decision:stage.decision==="advance"?"avanzar":stage.decision==="kill"?"apagar":"mantener"):(en?"pending":"pendiente")}</text></g>})}</svg>{frame.complete&&<OutcomeBlock tone={result.killed?"danger":"success"} title={result.killed?(en?"Kill switch activated":"Interruptor de apagado activado"):(en?"Advance the rollout":"Avanza el despliegue")} explanation={result.killed?(en?"A simulated stage breached the local no-worse rule, so later traffic is stopped.":"Una etapa simulada incumplió la regla local de no empeorar, por lo que se detiene el tráfico posterior."):(en?"The completed simulated stages meet the configured no-worse margin.":"Las etapas simuladas completadas cumplen el margen configurado de no empeorar.")}/>}</StoryStage>}/>:null} details={<p role={demo.error?"alert":undefined}>{(demo.error?(en?demo.error:"La calidad debe estar entre 0 y 1 y el margen no puede ser negativo."):null)??(en?"Quality must be 0–1 and the margin cannot be negative.":"La calidad debe estar entre 0 y 1 y el margen no puede ser negativo.")}</p>}/></main>}
+import { useState } from "react";
+import type { Locale } from "@/design-system/i18n/locale";
+import { TracePlayer } from "@/design-system/demo/trace-player";
+import { MissionPrompt, MissionComparison } from "@/design-system/demo/mission-lab";
+import { useDemoRun } from "@/design-system/demo/use-demo-run";
+import { StoryHero, StorySection, AnalogyBlock, WhyIBuiltIt, FitGuide, ProvesBlock, EngineerNotes } from "@/design-system/demo/project-story";
+import { traceCopy } from "@/lib/experience/trace-copy";
+import { runMission } from "@/lib/experience/mission";
+import { BanderaStoryScene } from "@/lib/experience/story-scene";
+import { COMPLETE_FRAME, rolloutStatus } from "@/lib/experience/scene-state";
+import { STORY } from "@/lib/experience/story";
+
+const REPO = "https://github.com/mdeasis27/bandera";
+const DEFAULT_QUALITY = .72;
+// ponytail: margin fixed at 0.02 so the bet text names every control the answer depends on.
+const MARGIN = .02;
+
+export function Experience({ locale }: { locale: Locale }) {
+  const t = STORY[locale];
+  const [quality, setQuality] = useState(DEFAULT_QUALITY);
+  const [prediction, setPrediction] = useState<string | null>(null);
+  const demo = useDemoRun(runMission);
+  const run = demo.run;
+  const result = run?.result;
+  // Section 03 waits for the tape to finish; keyed to the trace so every new run resets it.
+  const [playedTrace, setPlayedTrace] = useState<typeof demo.trace | null>(null);
+  const played = demo.trace.length === 0 || playedTrace === demo.trace;
+  const clear = () => { setPrediction(null); demo.reset(); };
+  const reset = () => { setQuality(DEFAULT_QUALITY); clear(); };
+  const scene = (frame: typeof COMPLETE_FRAME) => result ? <BanderaStoryScene frame={frame} result={result} locale={locale} /> : null;
+  const reachedAll = Boolean(result?.completed && result.finalTraffic === 1);
+
+  return <main className="mx-auto max-w-5xl px-5 py-8 text-foreground sm:py-12">
+    <StoryHero name={t.name} oneLiner={t.oneLiner} chips={t.chips} />
+
+    <StorySection index={1} heading={t.analogy.heading}>
+      <AnalogyBlock paragraphs={t.analogy.paragraphs} dictionaryLabel={t.analogy.dictionaryLabel} dictionary={t.analogy.dictionary} />
+    </StorySection>
+
+    <WhyIBuiltIt title={t.why.title} text={t.why.text} />
+
+    <StorySection index={2} heading={t.tryIt.heading} lead={t.tryIt.lead}>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)]">
+        <section className="min-w-0 rounded-xl border border-border bg-surface p-5">
+          <MissionPrompt locale={locale} question={t.tryIt.question(quality)} prediction={prediction} onPredict={setPrediction} locked={Boolean(run) || demo.running} options={[{ id: "yes", label: t.tryIt.yes }, { id: "no", label: t.tryIt.no }]} />
+          <label className="mt-5 block text-sm">{t.tryIt.qualityLabel}: <span className="font-medium">{t.tryIt.quality(quality)}</span>
+            <input aria-label={t.tryIt.qualityLabel} aria-valuetext={t.tryIt.quality(quality)} className="mt-2 w-full" type="range" min="0.6" max="0.84" step="0.02" value={quality} onChange={e => { setQuality(Number(e.target.value)); clear(); }} />
+          </label>
+          <p className="mt-4 text-xs leading-5 text-muted-foreground">{t.tryIt.note}</p>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <button type="button" data-run-experiment disabled={demo.running} className="min-w-0 flex-1 rounded-lg bg-accent px-4 py-3 text-sm font-medium text-white disabled:opacity-60" onClick={() => demo.execute({ variantQuality: quality, noWorseMargin: MARGIN })}>{t.tryIt.simulate}</button>
+            <button type="button" className="rounded-lg border border-border px-3 py-3 text-sm" onClick={demo.cancel}>{t.tryIt.cancel}</button>
+            <button type="button" className="rounded-lg border border-border px-3 py-3 text-sm" onClick={reset}>{t.tryIt.reset}</button>
+          </div>
+          {demo.error ? <p role="alert" className="mt-3 text-sm text-danger">{t.tryIt.error}</p> : null}
+        </section>
+        <section className="min-w-0">
+          {run && result
+            ? (demo.trace.length === 0 ? scene(COMPLETE_FRAME) : <TracePlayer collapsible autoPlay headingLevel="h3" onComplete={() => setPlayedTrace(demo.trace)} translate={key => traceCopy(locale, key)} trace={demo.trace} locale={locale} executionMs={run.executionMs} renderStage={scene} />)
+            : <p className="rounded-xl border border-dashed border-border p-8 text-sm text-muted-foreground">{t.tryIt.idle}</p>}
+        </section>
+      </div>
+    </StorySection>
+
+    <StorySection index={3} heading={t.compare.heading} lead={t.compare.lead}>
+      {result && played ? <MissionComparison locale={locale} prediction={prediction} actual={reachedAll ? "yes" : "no"} actualLabel={t.scene.reached(rolloutStatus(result.stages, result.stages.length))} explanation={t.compare.sentence(result.comparison.withGuard, result.comparison.withoutGuard)} sides={[
+        { label: t.compare.on, value: `${result.comparison.withGuard}`, detail: t.compare.worse, positive: result.comparison.withGuard < result.comparison.withoutGuard },
+        { label: t.compare.off, value: `${result.comparison.withoutGuard}`, detail: t.compare.worse },
+      ]} /> : null}
+    </StorySection>
+
+    <StorySection index={4} heading={t.fit.heading}>
+      <FitGuide worthLabel={t.fit.worthLabel} worth={t.fit.worth} notLabel={t.fit.notLabel} not={t.fit.not} />
+    </StorySection>
+
+    <StorySection index={5} heading={t.proves.heading}>
+      <ProvesBlock text={t.proves.text} />
+    </StorySection>
+
+    <EngineerNotes summary={t.engineers.summary}>
+      <ul className="list-disc space-y-2 pl-5">{t.engineers.points.map(p => <li key={p}>{p}</li>)}</ul>
+      <a className="mt-4 inline-block text-accent underline underline-offset-4" href={REPO}>{t.engineers.repoLabel} →</a>
+    </EngineerNotes>
+  </main>;
+}

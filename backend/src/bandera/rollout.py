@@ -26,7 +26,8 @@ def simulate_rollout(cfg: dict, experiment: dict) -> dict:
         variant = generate_scores(experiment["seed"] + i * 2 + 1, experiment["variantMean"], cfg["spread"], cfg["sampleSize"])
         t = welch_ttest(baseline, variant, cfg["alpha"])
         decision = decide(t["ciLow"], t["ciHigh"], cfg["margin"])
-        results.append({"stage": stage, **t, "decision": decision})
+        outcomes = ["good" if x >= cfg["baselineMean"] - cfg["margin"] else "degraded" for x in variant]
+        results.append({"stage": stage, **t, "decision": decision, "outcomes": outcomes})
 
         if decision == "kill":
             killed = True

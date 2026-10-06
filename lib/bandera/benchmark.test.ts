@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import flagRaw from "./data/flag.json";
 import fixture from "./fixtures/rollout.json";
 import { benchmark } from "./benchmark";
-import { decide } from "./rollout";
+import { decide, simulateRollout } from "./rollout";
 import type { FlagConfig } from "./types";
 
 const CFG = flagRaw as unknown as FlagConfig;
@@ -44,6 +44,7 @@ describe("pinned fixture: rollout", () => {
         expect(gs.pValue).toBeCloseTo(es.pValue, 10);
         expect(gs.ciLow).toBeCloseTo(es.ciLow, 10);
         expect(gs.ciHigh).toBeCloseTo(es.ciHigh, 10);
+        expect(gs.outcomes).toEqual(es.outcomes);
       }
     }
   });
@@ -60,5 +61,21 @@ describe("pinned fixture: rollout", () => {
     expect(bad.killed).toBe(true);
     expect(bad.regressions).toBe(1);
     expect(bad.finalTraffic).toBe(0);
+  });
+});
+
+describe("per-user outcomes", () => {
+  it("labels every served user good or degraded against baseline minus margin", () => {
+    const r = simulateRollout({ ...CFG, margin: 0.02 }, { id: "story", name: "story", variantMean: 0.72, seed: 503 });
+    for (const s of r.stages) expect(s.outcomes).toHaveLength(CFG.sampleSize);
+    const all = r.stages.flatMap((s) => s.outcomes);
+    expect(all.filter((o) => o === "good")).toHaveLength(35);
+    expect(all.filter((o) => o === "degraded")).toHaveLength(13);
+  });
+
+  it("matches the story case pinned for Python", () => {
+    const { story } = fixture;
+    const r = simulateRollout({ ...CFG, margin: story.margin }, { id: "story", name: "story", variantMean: story.variantMean, seed: story.seed });
+    expect(r.stages.map((s) => s.outcomes)).toEqual(story.outcomes);
   });
 });
