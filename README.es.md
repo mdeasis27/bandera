@@ -1,5 +1,9 @@
 # Bandera
 
+<!-- community-badges -->
+[![CI](https://github.com/mdeasis27/bandera/actions/workflows/ci.yml/badge.svg)](https://github.com/mdeasis27/bandera/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+<!-- /community-badges -->
+
 [English](README.md) · [Probar demo](https://bandera-manueldeasis27-2515s-projects.vercel.app/es/app) · [Caso de estudio](https://manueldeasis.com/es/projects/bandera) · [Código](https://github.com/mdeasis27/bandera)
 
 ![Interfaz interactiva local real](docs/images/cover.png)
@@ -77,3 +81,9 @@ Convierte evidencia de despliegue en una acción reversible.
 Los datos son ejemplos ficticios o anónimos. Las integraciones opcionales requieren sus propias credenciales y configuración. Los secretos pertenecen al gestor configurado, nunca a archivos locales de secretos ni Git. Usa el flujo existente `infisical run -- <command>` si necesitas integraciones en vivo. La demo local no publica ni despliega automáticamente.
 
 ![Captura real de la demo en español](docs/images/demo.es.png)
+
+<!-- community-section -->
+## Licencia y contribución
+
+Publicado bajo la [licencia MIT](LICENSE). Se aceptan issues y pull requests: lee antes [CONTRIBUTING.md](CONTRIBUTING.md) y el [Código de Conducta](CODE_OF_CONDUCT.md). Para reportar una vulnerabilidad, consulta [SECURITY.md](SECURITY.md).
+<!-- /community-section -->
